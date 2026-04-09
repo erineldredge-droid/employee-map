@@ -1,3 +1,7 @@
+Employee map global · HTML
+
+Show in Folder
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,479 +12,544 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
+    html, body { height: 100%; overflow: hidden; }
+ 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-      background: #f7f8fc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #eef1f8;
       color: #1a1a2e;
     }
-
-    .container {
-      max-width: 1160px;
-      margin: 0 auto;
-      padding: 24px 20px 40px;
+ 
+    .wrapper { display: flex; flex-direction: column; height: 100vh; }
+ 
+    /* ── Top bar ── */
+    .topbar {
+      background: #fff;
+      border-bottom: 1px solid #e4e7f0;
+      padding: 9px 18px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0; z-index: 10;
     }
-
-    /* ── Header ── */
-    .header { margin-bottom: 18px; }
-    .header h1 { font-size: 20px; font-weight: 700; color: #1a1a2e; display: flex; align-items: center; gap: 8px; }
-    .header .subtitle { font-size: 13px; color: #7a7f9a; margin-top: 4px; }
-    .stat-pill {
-      display: inline-block; background: #e8eeff; color: #3b5bdb;
-      font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 20px; margin-right: 6px;
+    .topbar h1 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+    .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pill {
+      font-size: 11px; font-weight: 600; padding: 3px 10px;
+      border-radius: 20px; white-space: nowrap;
     }
-
-    /* ── Legend ── */
-    .legend {
-      display: flex; flex-wrap: wrap; gap: 8px 16px;
-      margin-bottom: 18px;
+    .pill-blue   { background: #eef1ff; color: #3b5bdb; }
+    .pill-green  { background: #e6faf2; color: #1a9e6a; }
+    .pill-purple { background: #f3eeff; color: #7c3aed; }
+ 
+    /* ── Legend bar ── */
+    .legend-bar {
+      background: #fff;
+      border-bottom: 1px solid #e4e7f0;
+      padding: 6px 18px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      flex-shrink: 0;
     }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
-    /* ── Layout ── */
-    .map-layout { display: flex; gap: 16px; align-items: flex-start; }
-
+    .legend-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+    .legend-items { display: flex; gap: 12px; flex-wrap: wrap; }
+    .legend-item  { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #444; }
+    .legend-dot   { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+ 
+    /* dept filter */
+    .filter-btns { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+    .fbtn {
+      font-size: 11px; padding: 3px 9px; border-radius: 20px;
+      border: 1.5px solid #dde0ec; background: #fff; color: #555;
+      cursor: pointer; transition: all 0.13s; white-space: nowrap;
+    }
+    .fbtn:hover  { border-color: #3b5bdb; color: #3b5bdb; }
+    .fbtn.active { background: #3b5bdb; color: #fff; border-color: #3b5bdb; }
+ 
+    /* ── Content ── */
+    .content { display: flex; flex: 1; overflow: hidden; }
+ 
     /* ── Map ── */
-    #map-container { flex: 1; position: relative; background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); overflow: hidden; }
-    svg.us-map { display: block; width: 100%; height: auto; }
-
-    .state {
-      fill: #e8edf5;
-      stroke: #fff;
-      stroke-width: 0.7;
-      cursor: default;
-      transition: fill 0.15s;
+    #map-wrap {
+      flex: 1; position: relative; overflow: hidden;
+      background: #b8d4e8; /* ocean colour */
+      cursor: grab;
     }
-    .state.has-employees {
-      cursor: pointer;
+    #map-wrap:active { cursor: grabbing; }
+    #map-svg { display: block; width: 100%; height: 100%; }
+ 
+    .country    { stroke: #fff; stroke-width: 0.4; }
+    .country-base      { fill: #dde3ed; }
+    .country-highlight { fill: #c5d5f5; } /* countries with employees */
+ 
+    .zoom-hint {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.45); color: #fff; font-size: 11px;
+      padding: 5px 12px; border-radius: 20px; pointer-events: none;
+      opacity: 1; transition: opacity 0.5s;
     }
-    .state.has-employees:hover { stroke: #333; stroke-width: 1.5; filter: brightness(1.08); }
-    .state.active-state { stroke: #1a1a2e !important; stroke-width: 2 !important; }
-
+ 
+    /* ── Bubble markers ── */
+    .bubble-g { cursor: pointer; }
+    .bubble {
+      stroke: rgba(255,255,255,0.85); stroke-width: 2.5;
+      transition: filter 0.15s;
+    }
+    .bubble-g:hover .bubble { filter: brightness(1.1) drop-shadow(0 3px 6px rgba(0,0,0,0.25)); }
+    .bubble-g.selected .bubble {
+      stroke: #fff; stroke-width: 3;
+      filter: drop-shadow(0 0 0 3px #3b5bdb);
+    }
+    .bubble-label {
+      fill: #fff; text-anchor: middle; dominant-baseline: central;
+      font-weight: 700; pointer-events: none; font-family: inherit;
+    }
+ 
     /* ── Tooltip ── */
-    .tooltip {
-      position: absolute;
-      background: #1a1a2e;
-      color: #fff;
-      padding: 11px 14px;
-      border-radius: 10px;
-      font-size: 12.5px;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.12s;
-      max-width: 240px;
-      z-index: 20;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    .map-tooltip {
+      position: absolute; background: #1a1a2e; color: #fff;
+      padding: 8px 12px; border-radius: 9px; font-size: 12.5px;
+      pointer-events: none; opacity: 0; transition: opacity 0.12s;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 20;
+      white-space: nowrap;
     }
-    .tooltip h3 {
-      font-size: 13px; font-weight: 700; margin-bottom: 7px;
-      padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.15);
-    }
-    .tooltip .t-emp { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
-    .tooltip .t-avatar {
-      width: 22px; height: 22px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0;
-    }
-    .tooltip .t-name { font-size: 12px; font-weight: 500; }
-    .tooltip .t-dept { font-size: 10px; color: rgba(255,255,255,0.6); }
-
+    .map-tooltip .tt-name  { font-weight: 700; margin-bottom: 2px; }
+    .map-tooltip .tt-count { font-size: 11px; color: rgba(255,255,255,0.6); }
+ 
     /* ── Sidebar ── */
-    .sidebar { width: 270px; flex-shrink: 0; }
-    .sidebar-card {
-      background: #fff; border-radius: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-      padding: 18px; min-height: 240px;
+    .sidebar {
+      width: 272px; flex-shrink: 0;
+      background: #fff; border-left: 1px solid #e4e7f0;
+      display: flex; flex-direction: column; overflow: hidden;
     }
-    .sidebar-card h2 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; }
-    .sidebar-placeholder { color: #aaa; font-size: 13px; text-align: center; padding: 36px 10px; line-height: 1.6; }
-    .sidebar-placeholder .arrow { font-size: 24px; display: block; margin-bottom: 8px; }
-    #sidebar-employees { max-height: 440px; overflow-y: auto; }
-
-    /* ── Employee card ── */
+    .sb-head {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #f0f2f8;
+      flex-shrink: 0;
+    }
+    .sb-head h2 { font-size: 14px; font-weight: 700; }
+    .sb-head .sb-sub { font-size: 11px; color: #7a7f9a; margin-top: 2px; }
+    .sb-empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: #c0c4d6; font-size: 13px; padding: 20px; text-align: center;
+      line-height: 1.6; gap: 10px;
+    }
+    .sb-empty .icon { font-size: 30px; }
+    .sb-list {
+      flex: 1; overflow-y: auto; padding: 10px;
+      display: none;
+    }
+    .sb-list::-webkit-scrollbar { width: 3px; }
+    .sb-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+ 
+    .dept-grp { margin-bottom: 12px; }
+    .dept-grp-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; padding: 0 4px 5px;
+      border-bottom: 1px solid #f0f2f8; margin-bottom: 5px;
+    }
     .emp-card {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 10px; border-radius: 9px;
-      margin-bottom: 5px; background: #f7f8fc;
-      transition: background 0.1s;
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 8px; border-radius: 8px; margin-bottom: 4px;
+      background: #f7f8fc; transition: background 0.1s;
     }
-    .emp-card:hover { background: #eef0f8; }
-    .emp-avatar {
-      width: 34px; height: 34px; border-radius: 50%;
+    .emp-card:hover { background: #edf0f9; }
+    .emp-av {
+      width: 30px; height: 30px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+      font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
     }
-    .emp-name { font-size: 13px; font-weight: 600; color: #1a1a2e; line-height: 1.2; }
+    .emp-name { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
     .emp-dept { font-size: 11px; color: #7a7f9a; margin-top: 1px; }
-
-    /* ── Heatmap legend ── */
-    .heat-legend {
-      display: flex; align-items: center; gap: 6px; margin-top: 12px; margin-bottom: 18px;
-      font-size: 11px; color: #7a7f9a;
-    }
-    .heat-bar {
-      width: 120px; height: 10px; border-radius: 5px;
-      background: linear-gradient(to right, #dbeeff, #1a5fc8);
-    }
-
-    /* ── Global section ── */
-    .global-section { margin-top: 28px; }
-    .global-section h2 { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; }
-    .global-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-
-    .region-card {
-      background: #fff; border-radius: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-      padding: 16px;
-    }
-    .region-header {
-      display: flex; align-items: center; gap: 7px;
-      margin-bottom: 12px; padding-bottom: 10px;
-      border-bottom: 1px solid #f0f1f6;
-    }
-    .region-flag { font-size: 20px; }
-    .region-name { font-size: 14px; font-weight: 700; color: #1a1a2e; flex: 1; }
-    .count-badge {
-      background: #e8eeff; color: #3b5bdb;
-      font-size: 11px; font-weight: 700;
-      padding: 2px 8px; border-radius: 20px;
-    }
-
-    /* ── US State count footer ── */
-    .state-count-bar {
-      margin-top: 10px; font-size: 11px; color: #aaa;
-      text-align: center; padding: 6px 0;
-    }
-
-    /* scrollbar */
-    #sidebar-employees::-webkit-scrollbar { width: 4px; }
-    #sidebar-employees::-webkit-scrollbar-track { background: transparent; }
-    #sidebar-employees::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
-
-    @media (max-width: 720px) {
-      .map-layout { flex-direction: column; }
-      .sidebar { width: 100%; }
-    }
   </style>
 </head>
 <body>
-<div class="container">
-
-  <!-- Header -->
-  <div class="header">
+<div class="wrapper">
+ 
+  <div class="topbar">
     <h1>🗺️ Team Locations</h1>
-    <p class="subtitle">
-      <span class="stat-pill" id="us-count">—</span> US employees &nbsp;·&nbsp;
-      <span class="stat-pill" id="intl-count">—</span> International &nbsp;·&nbsp;
-      <span id="total-count">—</span> total across <span id="region-count">—</span> states &amp; regions
-    </p>
-  </div>
-
-  <!-- Legend -->
-  <div class="legend" id="legend"></div>
-
-  <!-- Heatmap scale -->
-  <div class="heat-legend">
-    <span>Fewer employees</span>
-    <div class="heat-bar"></div>
-    <span>More employees</span>
-  </div>
-
-  <!-- Map + Sidebar -->
-  <div class="map-layout">
-    <div id="map-container">
-      <div class="tooltip" id="tooltip"></div>
+    <div class="pills">
+      <span class="pill pill-blue"  id="p-total">74 employees</span>
+      <span class="pill pill-green" id="p-us">— US</span>
+      <span class="pill pill-purple" id="p-intl">— International</span>
     </div>
-
+  </div>
+ 
+  <div class="legend-bar">
+    <span class="legend-label">Dept</span>
+    <div class="legend-items" id="leg"></div>
+    <div class="filter-btns" id="fbtns"></div>
+  </div>
+ 
+  <div class="content">
+    <div id="map-wrap">
+      <div class="map-tooltip" id="tt"></div>
+      <div class="zoom-hint" id="zh">Scroll to zoom · Drag to pan</div>
+    </div>
     <div class="sidebar">
-      <div class="sidebar-card">
-        <h2 id="sidebar-title">Click a State</h2>
-        <div class="sidebar-placeholder" id="sidebar-placeholder">
-          <span class="arrow">👆</span>
-          Click any highlighted state on the map to see team members
-        </div>
-        <div id="sidebar-employees"></div>
+      <div class="sb-head">
+        <h2 id="sb-title">Select a Region</h2>
+        <div class="sb-sub" id="sb-sub"></div>
       </div>
+      <div class="sb-empty" id="sb-empty">
+        <span class="icon">🌍</span>
+        Click a circle on the map to see team members
+      </div>
+      <div class="sb-list" id="sb-list"></div>
     </div>
   </div>
-
-  <!-- Global section -->
-  <div class="global-section" id="global-section"></div>
-
 </div>
-
+ 
 <script>
 // ── Employee data ──
 const employees = [
-  { name: "Amanda Kahlow",            state: "California",       country: "United States", dept: "G&A" },
-  { name: "Andrew Torres",            state: "Nevada",           country: "United States", dept: "Engineering" },
-  { name: "Peter Shum",               state: "Virginia",         country: "United States", dept: "Professional Services" },
-  { name: "Sandi Hackler",            state: "Florida",          country: "United States", dept: "G&A" },
-  { name: "Alexandre Quin",           state: "Idaho",            country: "United States", dept: "Engineering" },
-  { name: "Lauren Winn",              state: "California",       country: "United States", dept: "Sales" },
-  { name: "Navneet Agarwal",          state: "Karnataka",        country: "India",         dept: "Engineering" },
-  { name: "Asim Iqbal",               state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Brian Leveque",            state: "Virginia",         country: "United States", dept: "Professional Services" },
-  { name: "Lynette Pretorius",        state: "Ontario",          country: "Canada",        dept: "G&A" },
-  { name: "Jos Kuttan",               state: "British Columbia", country: "Canada",        dept: "Engineering" },
-  { name: "Jibin Scaria",             state: "Ontario",          country: "Canada",        dept: "Engineering" },
-  { name: "Kirk Nankivell",           state: "Nevada",           country: "United States", dept: "Product Management" },
-  { name: "Katie Nocerino",           state: "California",       country: "United States", dept: "Sales" },
-  { name: "Marty Meyer",              state: "Florida",          country: "United States", dept: "G&A" },
-  { name: "Laura Fountain",           state: "Illinois",         country: "United States", dept: "Customer Success" },
-  { name: "Parthasarathy Jeyaram",    state: "Tamil Nadu",       country: "India",         dept: "Engineering" },
-  { name: "Ashoka Finley",            state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Siddhant Ujjain",          state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Katie Murphy",             state: "New York",         country: "United States", dept: "Customer Success" },
-  { name: "Mohan Singh",              state: "Rajasthan",        country: "India",         dept: "Engineering" },
-  { name: "Shivani Bajaj",            state: "New York",         country: "United States", dept: "Customer Success" },
-  { name: "Sara Sahlezghi",           state: "Washington",       country: "United States", dept: "Customer Success" },
-  { name: "Sonaksh Saraswat",         state: "Karnataka",        country: "India",         dept: "Engineering" },
-  { name: "Michael Bissani",          state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Erica Ferraro",            state: "California",       country: "United States", dept: "Customer Success" },
-  { name: "Chase Masciorini",         state: "California",       country: "United States", dept: "Sales" },
-  { name: "Kari Donovan",             state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Devon Guinn",              state: "New York",         country: "United States", dept: "Engineering" },
-  { name: "Martin Mallery",           state: "Florida",          country: "United States", dept: "Engineering" },
-  { name: "Matt Kern",                state: "Connecticut",      country: "United States", dept: "Engineering" },
-  { name: "Sabina Mamedova",          state: "New York",         country: "United States", dept: "Product Management" },
-  { name: "Stacy Falkman",            state: "New York",         country: "United States", dept: "Customer Success" },
-  { name: "Priyam Shah",              state: "Texas",            country: "United States", dept: "Product Management" },
-  { name: "Sachin Bhat",              state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Raina Raina",              state: "Minnesota",        country: "United States", dept: "Engineering" },
-  { name: "Kevin Amipara",            state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Anamay Saxena",            state: "Rajasthan",        country: "India",         dept: "Engineering" },
-  { name: "Teja Dronadula",           state: "Karnataka",        country: "India",         dept: "Engineering" },
-  { name: "Sanket Singhal",           state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Bridget Shea",             state: "New York",         country: "United States", dept: "Customer Success" },
-  { name: "Tanmay Chaudhari",         state: "Maharashtra",      country: "India",         dept: "Engineering" },
-  { name: "Ajay Deshmukh",            state: "Madhya Pradesh",   country: "India",         dept: "Engineering" },
-  { name: "Erin Eldredge",            state: "Oklahoma",         country: "United States", dept: "G&A" },
-  { name: "Devon McDermott",          state: "California",       country: "United States", dept: "Sales" },
-  { name: "Liz Madsen",               state: "Pennsylvania",     country: "United States", dept: "Sales" },
-  { name: "Tom Alaimo",               state: "Illinois",         country: "United States", dept: "Sales" },
-  { name: "Joi Heyward",              state: "New York",         country: "United States", dept: "G&A" },
-  { name: "Samarth K",                state: "Karnataka",        country: "India",         dept: "Engineering" },
-  { name: "Sudeep Patil",             state: "Maharashtra",      country: "India",         dept: "Engineering" },
-  { name: "Vishal Sharma",            state: "Uttarakhand",      country: "India",         dept: "Engineering" },
-  { name: "Ken Edwards",              state: "Ontario",          country: "Canada",        dept: "Sales" },
-  { name: "Derick Choi",              state: "California",       country: "United States", dept: "G&A" },
-  { name: "Jonathan or Coach Kvarfordt", state: "Utah",          country: "United States", dept: "Marketing" },
-  { name: "Giana Petrichella",        state: "Utah",             country: "United States", dept: "Marketing" },
-  { name: "Russell Logan",            state: "Nevada",           country: "United States", dept: "Customer Success" },
-  { name: "William Buecksler",        state: "North Carolina",   country: "United States", dept: "Sales" },
-  { name: "Neelesh Lohani",           state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Monica Cottrell",          state: "Georgia",          country: "United States", dept: "Sales" },
-  { name: "Amanda Purcell",           state: "Oregon",           country: "United States", dept: "Sales" },
-  { name: "Priyank Chhipa",           state: "Karnataka",        country: "India",         dept: "Engineering" },
-  { name: "Ginger Shaker",            state: "Tennessee",        country: "United States", dept: "Engineering" },
-  { name: "Sourish Gupta",            state: "Maharashtra",      country: "India",         dept: "Engineering" },
-  { name: "Josh Carter",              state: "Virginia",         country: "United States", dept: "Sales" },
-  { name: "Elah Horwitz",             state: "New York",         country: "United States", dept: "Customer Success" },
-  { name: "Izzy Hong",                state: "New York",         country: "United States", dept: "Customer Success" },
-  { name: "Claire McDonnell",         state: "New York",         country: "United States", dept: "Customer Success" },
-  { name: "Dilip Prasad",             state: "Kerala",           country: "India",         dept: "Engineering" },
-  { name: "Shreyas Ramanujam",        state: "Georgia",          country: "United States", dept: "Engineering" },
-  { name: "Miguel Ledesma",           state: "Texas",            country: "United States", dept: "Professional Services" },
-  { name: "Laura Montenegro",         state: "California",       country: "United States", dept: "Engineering" },
-  { name: "Isabella Miccio",          state: "California",       country: "United States", dept: "G&A" },
-  { name: "Tom Bowcut",               state: "Utah",             country: "United States", dept: "Sales" },
+  { name:"Amanda Kahlow",               region:"California",       country:"United States", dept:"G&A" },
+  { name:"Andrew Torres",               region:"Nevada",           country:"United States", dept:"Engineering" },
+  { name:"Peter Shum",                  region:"Virginia",         country:"United States", dept:"Professional Services" },
+  { name:"Sandi Hackler",               region:"Florida",          country:"United States", dept:"G&A" },
+  { name:"Alexandre Quin",              region:"Idaho",            country:"United States", dept:"Engineering" },
+  { name:"Lauren Winn",                 region:"California",       country:"United States", dept:"Sales" },
+  { name:"Navneet Agarwal",             region:"Karnataka",        country:"India",         dept:"Engineering" },
+  { name:"Asim Iqbal",                  region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Brian Leveque",               region:"Virginia",         country:"United States", dept:"Professional Services" },
+  { name:"Lynette Pretorius",           region:"Ontario",          country:"Canada",        dept:"G&A" },
+  { name:"Jos Kuttan",                  region:"British Columbia", country:"Canada",        dept:"Engineering" },
+  { name:"Jibin Scaria",                region:"Ontario",          country:"Canada",        dept:"Engineering" },
+  { name:"Kirk Nankivell",              region:"Nevada",           country:"United States", dept:"Product Management" },
+  { name:"Katie Nocerino",              region:"California",       country:"United States", dept:"Sales" },
+  { name:"Marty Meyer",                 region:"Florida",          country:"United States", dept:"G&A" },
+  { name:"Laura Fountain",              region:"Illinois",         country:"United States", dept:"Customer Success" },
+  { name:"Parthasarathy Jeyaram",       region:"Tamil Nadu",       country:"India",         dept:"Engineering" },
+  { name:"Ashoka Finley",               region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Siddhant Ujjain",             region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Katie Murphy",                region:"New York",         country:"United States", dept:"Customer Success" },
+  { name:"Mohan Singh",                 region:"Rajasthan",        country:"India",         dept:"Engineering" },
+  { name:"Shivani Bajaj",               region:"New York",         country:"United States", dept:"Customer Success" },
+  { name:"Sara Sahlezghi",              region:"Washington",       country:"United States", dept:"Customer Success" },
+  { name:"Sonaksh Saraswat",            region:"Karnataka",        country:"India",         dept:"Engineering" },
+  { name:"Michael Bissani",             region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Erica Ferraro",               region:"California",       country:"United States", dept:"Customer Success" },
+  { name:"Chase Masciorini",            region:"California",       country:"United States", dept:"Sales" },
+  { name:"Kari Donovan",                region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Devon Guinn",                 region:"New York",         country:"United States", dept:"Engineering" },
+  { name:"Martin Mallery",              region:"Florida",          country:"United States", dept:"Engineering" },
+  { name:"Matt Kern",                   region:"Connecticut",      country:"United States", dept:"Engineering" },
+  { name:"Sabina Mamedova",             region:"New York",         country:"United States", dept:"Product Management" },
+  { name:"Stacy Falkman",               region:"New York",         country:"United States", dept:"Customer Success" },
+  { name:"Priyam Shah",                 region:"Texas",            country:"United States", dept:"Product Management" },
+  { name:"Sachin Bhat",                 region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Raina Raina",                 region:"Minnesota",        country:"United States", dept:"Engineering" },
+  { name:"Kevin Amipara",               region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Anamay Saxena",               region:"Rajasthan",        country:"India",         dept:"Engineering" },
+  { name:"Teja Dronadula",              region:"Karnataka",        country:"India",         dept:"Engineering" },
+  { name:"Sanket Singhal",              region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Bridget Shea",                region:"New York",         country:"United States", dept:"Customer Success" },
+  { name:"Tanmay Chaudhari",            region:"Maharashtra",      country:"India",         dept:"Engineering" },
+  { name:"Ajay Deshmukh",               region:"Madhya Pradesh",   country:"India",         dept:"Engineering" },
+  { name:"Erin Eldredge",               region:"Oklahoma",         country:"United States", dept:"G&A" },
+  { name:"Devon McDermott",             region:"California",       country:"United States", dept:"Sales" },
+  { name:"Liz Madsen",                  region:"Pennsylvania",     country:"United States", dept:"Sales" },
+  { name:"Tom Alaimo",                  region:"Illinois",         country:"United States", dept:"Sales" },
+  { name:"Joi Heyward",                 region:"New York",         country:"United States", dept:"G&A" },
+  { name:"Samarth K",                   region:"Karnataka",        country:"India",         dept:"Engineering" },
+  { name:"Sudeep Patil",                region:"Maharashtra",      country:"India",         dept:"Engineering" },
+  { name:"Vishal Sharma",               region:"Uttarakhand",      country:"India",         dept:"Engineering" },
+  { name:"Ken Edwards",                 region:"Ontario",          country:"Canada",        dept:"Sales" },
+  { name:"Derick Choi",                 region:"California",       country:"United States", dept:"G&A" },
+  { name:"Jonathan or Coach Kvarfordt", region:"Utah",             country:"United States", dept:"Marketing" },
+  { name:"Giana Petrichella",           region:"Utah",             country:"United States", dept:"Marketing" },
+  { name:"Russell Logan",               region:"Nevada",           country:"United States", dept:"Customer Success" },
+  { name:"William Buecksler",           region:"North Carolina",   country:"United States", dept:"Sales" },
+  { name:"Neelesh Lohani",              region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Monica Cottrell",             region:"Georgia",          country:"United States", dept:"Sales" },
+  { name:"Amanda Purcell",              region:"Oregon",           country:"United States", dept:"Sales" },
+  { name:"Priyank Chhipa",              region:"Karnataka",        country:"India",         dept:"Engineering" },
+  { name:"Ginger Shaker",               region:"Tennessee",        country:"United States", dept:"Engineering" },
+  { name:"Sourish Gupta",               region:"Maharashtra",      country:"India",         dept:"Engineering" },
+  { name:"Josh Carter",                 region:"Virginia",         country:"United States", dept:"Sales" },
+  { name:"Elah Horwitz",                region:"New York",         country:"United States", dept:"Customer Success" },
+  { name:"Izzy Hong",                   region:"New York",         country:"United States", dept:"Customer Success" },
+  { name:"Claire McDonnell",            region:"New York",         country:"United States", dept:"Customer Success" },
+  { name:"Dilip Prasad",                region:"Kerala",           country:"India",         dept:"Engineering" },
+  { name:"Shreyas Ramanujam",           region:"Georgia",          country:"United States", dept:"Engineering" },
+  { name:"Miguel Ledesma",              region:"Texas",            country:"United States", dept:"Professional Services" },
+  { name:"Laura Montenegro",            region:"California",       country:"United States", dept:"Engineering" },
+  { name:"Isabella Miccio",             region:"California",       country:"United States", dept:"G&A" },
+  { name:"Tom Bowcut",                  region:"Utah",             country:"United States", dept:"Sales" },
 ];
-
+ 
+// ── Region centroids [lng, lat] ──
+const regionCoords = {
+  "California":     [-119.42, 36.78],
+  "Nevada":         [-116.42, 38.80],
+  "Virginia":       [-78.66,  37.43],
+  "Florida":        [-81.52,  27.99],
+  "Idaho":          [-114.74, 44.07],
+  "Illinois":       [-89.40,  40.63],
+  "New York":       [-75.50,  43.00],
+  "Washington":     [-121.49, 47.40],
+  "Connecticut":    [-73.09,  41.60],
+  "Texas":          [-99.90,  31.97],
+  "Minnesota":      [-94.69,  46.73],
+  "Utah":           [-111.09, 39.32],
+  "North Carolina": [-79.02,  35.76],
+  "Georgia":        [-82.90,  32.17],
+  "Oregon":         [-120.55, 43.80],
+  "Tennessee":      [-86.58,  35.52],
+  "Pennsylvania":   [-77.19,  41.20],
+  "Oklahoma":       [-96.92,  35.54],
+  "Ontario":          [-85.32, 51.25],
+  "British Columbia": [-127.65, 53.73],
+  "Karnataka":      [75.71,  15.32],
+  "Tamil Nadu":     [78.66,  11.13],
+  "Rajasthan":      [74.22,  27.02],
+  "Maharashtra":    [75.71,  19.75],
+  "Madhya Pradesh": [78.66,  22.97],
+  "Uttarakhand":    [79.02,  30.07],
+  "Kerala":         [76.27,  10.85],
+};
+ 
+// Countries with employees — ISO numeric IDs in world-atlas
+const highlightCountries = new Set([840, 124, 356]); // US, Canada, India
+ 
 // ── Dept colours ──
 const deptColors = {
   "Engineering":          "#4f8ef7",
   "Sales":                "#f7794f",
   "Customer Success":     "#3ec98e",
   "G&A":                  "#c97af4",
-  "Product Management":   "#f5c542",
-  "Professional Services":"#4fd4f7",
+  "Product Management":   "#e6b32a",
+  "Professional Services":"#22c4e8",
   "Marketing":            "#f74f8e",
 };
-const getDeptColor = dept => deptColors[dept] || "#aaa";
-const getInitials  = name => name.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
-
-// ── Group data ──
-const usByState = {};
-const byCountry = {};
-
+const getDeptColor = d => deptColors[d] || "#aaa";
+const getInitials  = n => n.split(' ').slice(0,2).map(c=>c[0]).join('').toUpperCase();
+ 
+// ── Group by region ──
+const byRegion = {};
 employees.forEach(e => {
-  if (e.country === "United States") {
-    (usByState[e.state] = usByState[e.state] || []).push(e);
-  } else {
-    if (!byCountry[e.country]) byCountry[e.country] = {};
-    (byCountry[e.country][e.state] = byCountry[e.country][e.state] || []).push(e);
-  }
+  if (!byRegion[e.region]) byRegion[e.region] = { country: e.country, employees: [] };
+  byRegion[e.region].employees.push(e);
 });
-
-const usCount   = Object.values(usByState).flat().length;
+ 
+const usCount   = employees.filter(e => e.country === "United States").length;
 const intlCount = employees.length - usCount;
-const regionCount = Object.keys(usByState).length;
-
-document.getElementById('us-count').textContent   = usCount;
-document.getElementById('intl-count').textContent = intlCount;
-document.getElementById('total-count').textContent = employees.length;
-document.getElementById('region-count').textContent = regionCount + Object.values(byCountry).reduce((a,r)=>a+Object.keys(r).length,0);
-
+document.getElementById('p-total').textContent = `${employees.length} employees`;
+document.getElementById('p-us').textContent    = `${usCount} US`;
+document.getElementById('p-intl').textContent  = `${intlCount} International`;
+ 
 // ── Legend ──
-const legendEl = document.getElementById('legend');
+const legEl = document.getElementById('leg');
 Object.entries(deptColors).forEach(([dept, color]) => {
-  const el = document.createElement('div');
-  el.className = 'legend-item';
-  el.innerHTML = `<div class="legend-dot" style="background:${color}"></div><span>${dept}</span>`;
-  legendEl.appendChild(el);
+  legEl.insertAdjacentHTML('beforeend',
+    `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div><span>${dept}</span></div>`);
 });
-
-// ── State FIPS lookup ──
-const stateNameToId = {
-  "Alabama":"01","Alaska":"02","Arizona":"04","Arkansas":"05","California":"06",
-  "Colorado":"08","Connecticut":"09","Delaware":"10","Florida":"12","Georgia":"13",
-  "Hawaii":"15","Idaho":"16","Illinois":"17","Indiana":"18","Iowa":"19","Kansas":"20",
-  "Kentucky":"21","Louisiana":"22","Maine":"23","Maryland":"24","Massachusetts":"25",
-  "Michigan":"26","Minnesota":"27","Mississippi":"28","Missouri":"29","Montana":"30",
-  "Nebraska":"31","Nevada":"32","New Hampshire":"33","New Jersey":"34","New Mexico":"35",
-  "New York":"36","North Carolina":"37","North Dakota":"38","Ohio":"39","Oklahoma":"40",
-  "Oregon":"41","Pennsylvania":"42","Rhode Island":"44","South Carolina":"45",
-  "South Dakota":"46","Tennessee":"47","Texas":"48","Utah":"49","Vermont":"50",
-  "Virginia":"51","Washington":"53","West Virginia":"54","Wisconsin":"55","Wyoming":"56",
-  "District of Columbia":"11"
-};
-const idToName = Object.fromEntries(Object.entries(stateNameToId).map(([k,v])=>[v,k]));
-
-// ── Build SVG map ──
-const mapContainer = document.getElementById('map-container');
-const tooltip      = document.getElementById('tooltip');
-const W = 960, H = 600;
-
-const svg = d3.select('#map-container').append('svg')
-  .attr('viewBox', `0 0 ${W} ${H}`)
-  .attr('class', 'us-map');
-
-const projection = d3.geoAlbersUsa().scale(1280).translate([W/2, H/2]);
-const path = d3.geoPath().projection(projection);
-
-const maxEmp = Math.max(...Object.values(usByState).map(v=>v.length));
-const colorScale = d3.scaleSequential()
-  .domain([0, maxEmp])
-  .interpolator(d3.interpolate("#c8dcf8", "#1a5fc8"));
-
-let activeStateName = null;
-
-d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
-  const features = topojson.feature(us, us.objects.states).features;
-
-  svg.selectAll('.state')
-    .data(features)
-    .enter()
-    .append('path')
-    .attr('class', d => {
-      const nm = idToName[String(d.id).padStart(2,'0')];
-      return 'state' + (usByState[nm] ? ' has-employees' : '');
-    })
-    .attr('d', path)
-    .attr('fill', d => {
-      const nm = idToName[String(d.id).padStart(2,'0')];
-      return usByState[nm] ? colorScale(usByState[nm].length) : '#e8edf5';
-    })
-    .on('mouseover', function(event, d) {
-      const nm = idToName[String(d.id).padStart(2,'0')];
-      const emps = usByState[nm];
-      if (!emps) return;
-
-      d3.select(this).raise().attr('stroke','#1a1a2e').attr('stroke-width', 1.8);
-
-      const rows = emps.map(e => `
-        <div class="t-emp">
-          <div class="t-avatar" style="background:${getDeptColor(e.dept)}">${getInitials(e.name)}</div>
-          <div><div class="t-name">${e.name}</div><div class="t-dept">${e.dept}</div></div>
-        </div>`).join('');
-      tooltip.innerHTML = `<h3>${nm} &nbsp;·&nbsp; ${emps.length} employee${emps.length>1?'s':''}</h3>${rows}`;
-      tooltip.style.opacity = '1';
+ 
+// ── Dept filter ──
+let activeFilter = null;
+const fbEl = document.getElementById('fbtns');
+[{label:'All', value:null}, ...Object.keys(deptColors).sort().map(d => ({label:d, value:d}))].forEach(({label, value}) => {
+  const btn = document.createElement('button');
+  btn.className = 'fbtn' + (value === null ? ' active' : '');
+  btn.textContent = label;
+  btn.onclick = () => {
+    activeFilter = value;
+    document.querySelectorAll('.fbtn').forEach(b => b.classList.toggle('active', b.textContent === label));
+    refreshBubbles();
+    if (selectedRegion) renderSidebar(selectedRegion);
+  };
+  fbEl.appendChild(btn);
+});
+ 
+// ── Map setup ──
+const wrap  = document.getElementById('map-wrap');
+const W = wrap.clientWidth  || 900;
+const H = wrap.clientHeight || 500;
+ 
+const svg = d3.select('#map-wrap').append('svg')
+  .attr('id','map-svg')
+  .attr('width', W).attr('height', H);
+ 
+// Defs — clip
+svg.append('defs').append('clipPath').attr('id','map-clip')
+  .append('rect').attr('width', W).attr('height', H);
+ 
+const projection = d3.geoNaturalEarth1()
+  .scale(Math.min(W / 6.0, H / 3.2))
+  .translate([W / 2, H / 2]);
+ 
+const pathGen = d3.geoPath().projection(projection);
+ 
+const mapG     = svg.append('g').attr('clip-path','url(#map-clip)');
+const countriesG = mapG.append('g').attr('id','countries');
+const markersG   = svg.append('g').attr('id','markers'); // outside zoom
+ 
+// ── Zoom ──
+const zoom = d3.zoom()
+  .scaleExtent([0.8, 12])
+  .on('zoom', event => {
+    const t = event.transform;
+    mapG.attr('transform', t);
+    // reposition markers (keep constant visual size)
+    updateMarkerPositions(t);
+ 
+    // fade out zoom hint
+    document.getElementById('zh').style.opacity = '0';
+  });
+ 
+svg.call(zoom);
+ 
+// ── Draw countries ──
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+  const countries = topojson.feature(world, world.objects.countries);
+ 
+  countriesG.selectAll('.country')
+    .data(countries.features)
+    .enter().append('path')
+    .attr('class', d => 'country ' + (highlightCountries.has(+d.id) ? 'country-highlight' : 'country-base'))
+    .attr('d', pathGen);
+ 
+  // Country borders
+  mapG.append('path')
+    .datum(topojson.mesh(world, world.objects.countries, (a,b) => a !== b))
+    .attr('fill','none').attr('stroke','#fff').attr('stroke-width', 0.4)
+    .attr('d', pathGen);
+ 
+  buildBubbles();
+}).catch(() => {
+  // fallback: still build bubbles even if world map fails
+  buildBubbles();
+});
+ 
+// ── Bubbles ──
+let selectedRegion = null;
+let selectedEl     = null;
+ 
+function bubbleRadius(count) {
+  if (count >= 15) return 22;
+  if (count >= 8)  return 18;
+  if (count >= 4)  return 15;
+  if (count >= 2)  return 12;
+  return 10;
+}
+function bubbleColor(count) {
+  if (count >= 15) return "#1a4fa0";
+  if (count >= 8)  return "#2563d6";
+  if (count >= 4)  return "#4f8ef7";
+  if (count >= 2)  return "#6ba4f8";
+  return "#93bef9";
+}
+ 
+const tt = document.getElementById('tt');
+ 
+function buildBubbles() {
+  markersG.selectAll('.bubble-g').remove();
+ 
+  const regions = Object.entries(byRegion).filter(([r]) => regionCoords[r]);
+ 
+  const groups = markersG.selectAll('.bubble-g')
+    .data(regions, d => d[0])
+    .enter().append('g')
+    .attr('class', 'bubble-g')
+    .attr('data-region', d => d[0]);
+ 
+  groups.append('circle').attr('class','bubble');
+  groups.append('text').attr('class','bubble-label');
+ 
+  // position + style
+  refreshBubbles();
+ 
+  groups
+    .on('mouseover', function(event, [region, data]) {
+      const emps = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
+      if (!emps.length) return;
+      tt.innerHTML = `<div class="tt-name">${region}</div><div class="tt-count">${emps.length} employee${emps.length>1?'s':''} · ${data.country}</div>`;
+      tt.style.opacity = '1';
     })
     .on('mousemove', function(event) {
-      const rect = mapContainer.getBoundingClientRect();
-      let x = event.clientX - rect.left + 14;
-      let y = event.clientY - rect.top - 12;
-      if (x + 250 > rect.width)  x -= 260;
-      if (y + tooltip.offsetHeight > rect.height) y -= tooltip.offsetHeight + 10;
-      tooltip.style.left = x + 'px';
-      tooltip.style.top  = y + 'px';
+      const rect = wrap.getBoundingClientRect();
+      let x = event.clientX - rect.left + 12;
+      let y = event.clientY - rect.top  - 36;
+      if (x + 200 > rect.width) x -= 210;
+      tt.style.left = x + 'px';
+      tt.style.top  = y + 'px';
     })
-    .on('mouseout', function(event, d) {
-      const nm = idToName[String(d.id).padStart(2,'0')];
-      if (nm !== activeStateName) {
-        d3.select(this).attr('stroke','#fff').attr('stroke-width', 0.7);
-      }
-      tooltip.style.opacity = '0';
-    })
-    .on('click', function(event, d) {
-      const nm = idToName[String(d.id).padStart(2,'0')];
-      if (!usByState[nm]) return;
-
-      // reset all borders
-      svg.selectAll('.state').attr('stroke','#fff').attr('stroke-width', 0.7);
-      // highlight clicked
-      d3.select(this).raise().attr('stroke','#1a1a2e').attr('stroke-width', 2.5);
-      activeStateName = nm;
-      renderSidebar(nm, usByState[nm]);
+    .on('mouseout', () => { tt.style.opacity = '0'; })
+    .on('click', function(event, [region, data]) {
+      const emps = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
+      if (!emps.length) return;
+ 
+      // deselect previous
+      if (selectedEl) d3.select(selectedEl).classed('selected', false);
+      d3.select(this).classed('selected', true);
+      selectedEl = this;
+      selectedRegion = region;
+      renderSidebar(region);
     });
-
-  // Draw state borders on top
-  svg.append('path')
-    .datum(topojson.mesh(us, us.objects.states, (a,b)=>a!==b))
-    .attr('fill','none').attr('stroke','#fff').attr('stroke-width', 0.7)
-    .attr('d', path);
-
-}).catch(() => {
-  mapContainer.innerHTML = '<p style="padding:20px;color:#888">Map failed to load. Please check your internet connection.</p>';
-});
-
-// ── Sidebar renderer ──
-function renderSidebar(stateName, emps) {
-  document.getElementById('sidebar-title').textContent = `${stateName} (${emps.length})`;
-  document.getElementById('sidebar-placeholder').style.display = 'none';
-  document.getElementById('sidebar-employees').innerHTML = emps
-    .sort((a,b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name))
-    .map(e => `
-      <div class="emp-card">
-        <div class="emp-avatar" style="background:${getDeptColor(e.dept)}">${getInitials(e.name)}</div>
-        <div>
-          <div class="emp-name">${e.name}</div>
-          <div class="emp-dept">${e.dept}</div>
-        </div>
+ 
+  // initial position
+  updateMarkerPositions(d3.zoomTransform(svg.node()));
+}
+ 
+function refreshBubbles() {
+  markersG.selectAll('.bubble-g').each(function([region, data]) {
+    const emps  = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
+    const count = emps.length;
+    const r     = bubbleRadius(count);
+    const sel   = d3.select(this);
+ 
+    sel.style('display', count === 0 ? 'none' : '');
+    sel.select('.bubble')
+      .attr('r', r)
+      .attr('fill', bubbleColor(count));
+    sel.select('.bubble-label')
+      .attr('font-size', count >= 10 ? 11 : 12)
+      .text(count);
+  });
+}
+ 
+function updateMarkerPositions(t) {
+  markersG.selectAll('.bubble-g').each(function([region]) {
+    const coords = regionCoords[region];
+    if (!coords) return;
+    const [px, py] = projection(coords);
+    const sx = t.applyX(px);
+    const sy = t.applyY(py);
+    d3.select(this).attr('transform', `translate(${sx},${sy})`);
+  });
+}
+ 
+// ── Sidebar ──
+function renderSidebar(region) {
+  const data = byRegion[region];
+  const emps = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
+ 
+  document.getElementById('sb-title').textContent = region;
+  document.getElementById('sb-sub').textContent   = `${data.country} · ${emps.length} employee${emps.length!==1?'s':''}`;
+  document.getElementById('sb-empty').style.display = 'none';
+ 
+  const listEl = document.getElementById('sb-list');
+  listEl.style.display = 'block';
+ 
+  const grouped = {};
+  emps.forEach(e => { (grouped[e.dept] = grouped[e.dept] || []).push(e); });
+ 
+  listEl.innerHTML = Object.entries(grouped)
+    .sort(([a],[b]) => a.localeCompare(b))
+    .map(([dept, dEmps]) => `
+      <div class="dept-grp">
+        <div class="dept-grp-label" style="color:${getDeptColor(dept)}">${dept}</div>
+        ${dEmps.sort((a,b)=>a.name.localeCompare(b.name)).map(e=>`
+          <div class="emp-card">
+            <div class="emp-av" style="background:${getDeptColor(e.dept)}">${getInitials(e.name)}</div>
+            <div>
+              <div class="emp-name">${e.name}</div>
+              <div class="emp-dept">${e.dept}</div>
+            </div>
+          </div>`).join('')}
       </div>`).join('');
 }
-
-// ── Global section ──
-const countryFlags = { Canada: "🇨🇦", India: "🇮🇳" };
-const globalSection = document.getElementById('global-section');
-
-const cards = Object.entries(byCountry)
-  .sort(([a],[b]) => a.localeCompare(b))
-  .flatMap(([country, regions]) =>
-    Object.entries(regions)
-      .sort(([a],[b]) => a.localeCompare(b))
-      .map(([region, emps]) => `
-        <div class="region-card">
-          <div class="region-header">
-            <span class="region-flag">${countryFlags[country]||'🌐'}</span>
-            <span class="region-name">${region}, ${country}</span>
-            <span class="count-badge">${emps.length}</span>
-          </div>
-          ${emps.sort((a,b)=>a.dept.localeCompare(b.dept)||a.name.localeCompare(b.name))
-            .map(e => `
-              <div class="emp-card">
-                <div class="emp-avatar" style="background:${getDeptColor(e.dept)}">${getInitials(e.name)}</div>
-                <div>
-                  <div class="emp-name">${e.name}</div>
-                  <div class="emp-dept">${e.dept}</div>
-                </div>
-              </div>`).join('')}
-        </div>`)
-  ).join('');
-
-globalSection.innerHTML = `<h2>🌍 International Team</h2><div class="global-grid">${cards}</div>`;
+ 
+// hide zoom hint after 4s
+setTimeout(() => { document.getElementById('zh').style.opacity = '0'; }, 4000);
 </script>
 </body>
 </html>
