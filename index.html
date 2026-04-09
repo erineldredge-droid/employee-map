@@ -7,52 +7,73 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
   <style>
+    /* ── 1mind brand tokens ──────────────────────────────── */
+    :root {
+      --purple-dark:   #9546CD;
+      --purple-light:  #B57EDC;
+      --terra-dark:    #8D5A49;
+      --terra-light:   #AD7562;
+      --ocean:         #b8d4e8;
+      --land:          #f5f0eb;
+      --land-hi:       #ecddf8;
+      --border-country:#111111;
+      --border-state:  #111111;
+      --bg:            #faf7fd;
+      --surface:       #ffffff;
+      --text:          #1a0d2e;
+      --text-muted:    #7a6a8a;
+    }
+ 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; }
  
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #eef1f8;
-      color: #1a1a2e;
+      background: var(--bg);
+      color: var(--text);
     }
  
     .wrapper { display: flex; flex-direction: column; height: 100vh; }
  
     /* ── Top bar ── */
     .topbar {
-      background: #fff;
-      border-bottom: 1px solid #e4e7f0;
+      background: var(--surface);
+      border-bottom: 1px solid #e8dff4;
       padding: 9px 18px;
       display: flex; align-items: center; gap: 12px;
-      flex-shrink: 0; z-index: 10;
+      flex-shrink: 0;
     }
-    .topbar h1 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+    .topbar h1 {
+      font-size: 15px; font-weight: 700; white-space: nowrap; color: #1a1a2e;
+    }
     .pills { display: flex; gap: 6px; flex-wrap: wrap; }
     .pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
-    .pill-blue   { background: #eef1ff; color: #3b5bdb; }
-    .pill-green  { background: #e6faf2; color: #1a9e6a; }
-    .pill-purple { background: #f3eeff; color: #7c3aed; }
+    .pill-total  { background: #f3e8fd; color: var(--purple-dark); }
+    .pill-us     { background: #f3e8fd; color: var(--purple-dark); }
+    .pill-intl   { background: #f7ede9; color: var(--terra-dark); }
  
     /* ── Legend bar ── */
     .legend-bar {
-      background: #fff;
-      border-bottom: 1px solid #e4e7f0;
+      background: var(--surface);
+      border-bottom: 1px solid #e8dff4;
       padding: 6px 18px;
       display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
       flex-shrink: 0;
     }
-    .legend-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+    .legend-label { font-size: 10px; font-weight: 700; color: #bbaacb; text-transform: uppercase; letter-spacing: 0.5px; }
     .legend-items { display: flex; gap: 12px; flex-wrap: wrap; }
-    .legend-item  { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #444; }
+    .legend-item  { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #555; }
     .legend-dot   { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .filter-btns  { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+ 
+    /* filter buttons */
+    .filter-btns { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
     .fbtn {
       font-size: 11px; padding: 3px 9px; border-radius: 20px;
-      border: 1.5px solid #dde0ec; background: #fff; color: #555;
+      border: 1.5px solid #ddd0ee; background: var(--surface); color: #6a5a7a;
       cursor: pointer; transition: all 0.13s; white-space: nowrap;
     }
-    .fbtn:hover  { border-color: #3b5bdb; color: #3b5bdb; }
-    .fbtn.active { background: #3b5bdb; color: #fff; border-color: #3b5bdb; }
+    .fbtn:hover  { border-color: var(--purple-dark); color: var(--purple-dark); }
+    .fbtn.active { background: var(--purple-dark); color: #fff; border-color: var(--purple-dark); }
  
     /* ── Content ── */
     .content { display: flex; flex: 1; overflow: hidden; }
@@ -60,36 +81,62 @@
     /* ── Map ── */
     #map-wrap {
       flex: 1; position: relative; overflow: hidden;
-      background: #b8d4e8;
+      background: var(--ocean);
       cursor: grab;
     }
     #map-wrap:active { cursor: grabbing; }
     #map-svg { display: block; width: 100%; height: 100%; }
  
-    /* Countries */
-    .country      { stroke: #c8d0de; stroke-width: 0.4; }
-    .country-base { fill: #dde3ed; }
-    .country-highlight { fill: #cad8f0; }
+    /* Country fills */
+    .country-base { fill: var(--land); stroke: none; }
+    .country-hi   { fill: var(--land-hi); stroke: none; }
  
-    /* US state borders */
-    .state-borders { fill: none; stroke: #9aaac4; stroke-width: 0.5; }
-    .state-borders-outer { fill: none; stroke: #9aaac4; stroke-width: 0.7; }
- 
-    /* India / Canada province borders */
-    .province-borders { fill: none; stroke: #9aaac4; stroke-width: 0.4; }
- 
-    .zoom-hint {
-      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.42); color: #fff; font-size: 11px;
-      padding: 5px 12px; border-radius: 20px; pointer-events: none;
-      transition: opacity 0.5s;
+    /* Country outer borders */
+    .borders-country {
+      fill: none;
+      stroke: var(--border-country);
+      stroke-width: 0.35;
+      stroke-linejoin: round;
     }
  
-    /* ── Bubble markers ── */
+    /* US state interior lines */
+    .borders-us-states {
+      fill: none;
+      stroke: var(--border-state);
+      stroke-width: 0.25;
+      stroke-linejoin: round;
+    }
+ 
+    /* India / Canada province lines */
+    .borders-provinces {
+      fill: none;
+      stroke: var(--border-state);
+      stroke-width: 0.25;
+      stroke-linejoin: round;
+    }
+ 
+    /* zoom hint */
+    .zoom-hint {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      background: rgba(20, 5, 40, 0.45); color: rgba(255,255,255,0.88); font-size: 11px;
+      padding: 5px 13px; border-radius: 20px; pointer-events: none;
+      transition: opacity 0.6s;
+    }
+ 
+    /* ── Bubbles ── */
     .bubble-g { cursor: pointer; }
-    .bubble { stroke: rgba(255,255,255,0.9); stroke-width: 2.5; transition: filter 0.15s; }
-    .bubble-g:hover .bubble { filter: brightness(1.1) drop-shadow(0 3px 8px rgba(0,0,0,0.28)); }
-    .bubble-g.selected .bubble { stroke: #fff; stroke-width: 3; filter: drop-shadow(0 0 0 3px #3b5bdb); }
+    .bubble {
+      stroke: rgba(255,255,255,0.9);
+      stroke-width: 2.5;
+      transition: filter 0.15s;
+    }
+    .bubble-g:hover .bubble {
+      filter: brightness(1.12) drop-shadow(0 3px 8px rgba(149,70,205,0.4));
+    }
+    .bubble-g.selected .bubble {
+      stroke: #fff; stroke-width: 3;
+      filter: drop-shadow(0 0 0 3.5px var(--purple-dark));
+    }
     .bubble-label {
       fill: #fff; text-anchor: middle; dominant-baseline: central;
       font-weight: 700; pointer-events: none; font-family: inherit;
@@ -97,53 +144,65 @@
  
     /* ── Tooltip ── */
     .map-tooltip {
-      position: absolute; background: #1a1a2e; color: #fff;
-      padding: 8px 12px; border-radius: 9px; font-size: 12.5px;
+      position: absolute;
+      background: linear-gradient(135deg, #2a0a4e, #1a0d2e);
+      color: #fff;
+      padding: 9px 13px; border-radius: 10px; font-size: 12.5px;
       pointer-events: none; opacity: 0; transition: opacity 0.12s;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 20; white-space: nowrap;
+      box-shadow: 0 4px 18px rgba(149,70,205,0.3);
+      z-index: 20; white-space: nowrap;
+      border: 1px solid rgba(181,126,220,0.25);
     }
     .map-tooltip .tt-name  { font-weight: 700; margin-bottom: 2px; }
-    .map-tooltip .tt-count { font-size: 11px; color: rgba(255,255,255,0.6); }
+    .map-tooltip .tt-count { font-size: 11px; color: rgba(255,255,255,0.55); }
  
     /* ── Sidebar ── */
     .sidebar {
       width: 272px; flex-shrink: 0;
-      background: #fff; border-left: 1px solid #e4e7f0;
+      background: var(--surface);
+      border-left: 1px solid #e8dff4;
       display: flex; flex-direction: column; overflow: hidden;
     }
-    .sb-head { padding: 14px 16px 10px; border-bottom: 1px solid #f0f2f8; flex-shrink: 0; }
-    .sb-head h2 { font-size: 14px; font-weight: 700; }
-    .sb-head .sb-sub { font-size: 11px; color: #7a7f9a; margin-top: 2px; }
+    .sb-head {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #f3edf9;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #fdf8ff, #fff8f5);
+    }
+    .sb-head h2 { font-size: 14px; font-weight: 700; color: var(--text); }
+    .sb-head .sb-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+ 
     .sb-empty {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      color: #c0c4d6; font-size: 13px; padding: 20px; text-align: center;
+      color: #c0b0d0; font-size: 13px; padding: 20px; text-align: center;
       line-height: 1.6; gap: 10px;
     }
     .sb-empty .icon { font-size: 30px; }
+ 
     .sb-list { flex: 1; overflow-y: auto; padding: 10px; display: none; }
     .sb-list::-webkit-scrollbar { width: 3px; }
-    .sb-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+    .sb-list::-webkit-scrollbar-thumb { background: #ddd0ee; border-radius: 2px; }
  
     .dept-grp { margin-bottom: 12px; }
     .dept-grp-label {
       font-size: 10px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.6px; padding: 0 4px 5px;
-      border-bottom: 1px solid #f0f2f8; margin-bottom: 5px;
+      border-bottom: 1px solid #f3edf9; margin-bottom: 5px;
     }
     .emp-card {
       display: flex; align-items: center; gap: 9px;
-      padding: 7px 8px; border-radius: 8px; margin-bottom: 4px;
-      background: #f7f8fc; transition: background 0.1s;
+      padding: 7px 8px; border-radius: 9px; margin-bottom: 4px;
+      background: #faf7fd; transition: background 0.1s;
     }
-    .emp-card:hover { background: #edf0f9; }
+    .emp-card:hover { background: #f3eaf9; }
     .emp-av {
       width: 30px; height: 30px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
     }
-    .emp-name { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
-    .emp-dept { font-size: 11px; color: #7a7f9a; margin-top: 1px; }
+    .emp-name { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.2; }
+    .emp-dept { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
   </style>
 </head>
 <body>
@@ -152,9 +211,9 @@
   <div class="topbar">
     <h1>🗺️ Team Locations</h1>
     <div class="pills">
-      <span class="pill pill-blue"   id="p-total">74 employees</span>
-      <span class="pill pill-green"  id="p-us">— US</span>
-      <span class="pill pill-purple" id="p-intl">— International</span>
+      <span class="pill pill-total"  id="p-total">— employees</span>
+      <span class="pill pill-us"     id="p-us">— US</span>
+      <span class="pill pill-intl"   id="p-intl">— International</span>
     </div>
   </div>
  
@@ -279,7 +338,6 @@ const regionCoords = {
   "Kerala":         [76.27, 10.85],
 };
  
-// ISO numeric IDs for countries with employees
 const highlightCountries = new Set([840, 124, 356]); // US, Canada, India
  
 // ── Dept colours ──
@@ -318,7 +376,7 @@ Object.entries(deptColors).forEach(([dept, color]) => {
 // ── Dept filter ──
 let activeFilter = null;
 const fbEl = document.getElementById('fbtns');
-[{label:'All', value:null}, ...Object.keys(deptColors).sort().map(d=>({label:d,value:d}))].forEach(({label,value}) => {
+[{label:'All',value:null}, ...Object.keys(deptColors).sort().map(d=>({label:d,value:d}))].forEach(({label,value}) => {
   const btn = document.createElement('button');
   btn.className = 'fbtn' + (value === null ? ' active' : '');
   btn.textContent = label;
@@ -362,79 +420,91 @@ const zoom = d3.zoom()
   });
 svg.call(zoom);
  
-// ── Load maps ──
+// ── Helper: get first topojson object ──
+function topoMesh(data, innerOnly) {
+  const key = Object.keys(data.objects)[0];
+  return innerOnly
+    ? topojson.mesh(data, data.objects[key], (a,b) => a !== b)
+    : topojson.mesh(data, data.objects[key]);
+}
+ 
+// ── Load all map data ──
 Promise.all([
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'),
   d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'),
-]).then(([world, us]) => {
+  d3.json('https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.0.0/countries/in/in-all.topo.json').catch(() => null),
+  d3.json('https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.0.0/countries/ca/ca-all.topo.json').catch(() => null),
+]).then(([world, us, india, canada]) => {
  
   // 1. Country fills
   const countries = topojson.feature(world, world.objects.countries);
   mapG.append('g').attr('id','countries')
-    .selectAll('.country')
+    .selectAll('path')
     .data(countries.features)
     .enter().append('path')
-    .attr('class', d => 'country ' + (highlightCountries.has(+d.id) ? 'country-highlight' : 'country-base'))
+    .attr('class', d => highlightCountries.has(+d.id) ? 'country-hi' : 'country-base')
     .attr('d', pathGen);
  
-  // 2. Country borders
+  // 2. Country borders (all countries)
   mapG.append('path')
     .datum(topojson.mesh(world, world.objects.countries, (a,b) => a !== b))
-    .attr('fill','none').attr('stroke','#c0cad8').attr('stroke-width', 0.4)
+    .attr('class','borders-country')
     .attr('d', pathGen);
  
   // 3. US state internal borders
   mapG.append('path')
     .datum(topojson.mesh(us, us.objects.states, (a,b) => a !== b))
-    .attr('class','state-borders')
+    .attr('class','borders-us-states')
     .attr('d', pathGen);
  
-  // 4. US outer border (slightly heavier)
-  mapG.append('path')
-    .datum(topojson.mesh(us, us.objects.states, (a,b) => a === b))
-    .attr('class','state-borders-outer')
-    .attr('d', pathGen);
+  // 4. India state borders
+  if (india) {
+    try {
+      mapG.append('path')
+        .datum(topoMesh(india, true))
+        .attr('class','borders-provinces')
+        .attr('d', pathGen);
+    } catch(e) {}
+  }
+ 
+  // 5. Canada province borders
+  if (canada) {
+    try {
+      mapG.append('path')
+        .datum(topoMesh(canada, true))
+        .attr('class','borders-provinces')
+        .attr('d', pathGen);
+    } catch(e) {}
+  }
  
   buildBubbles();
+}).catch(() => { buildBubbles(); });
  
-}).catch(() => {
-  // fallback if CDN fails
-  buildBubbles();
-});
- 
-// ── Bubbles ──
+// ── Bubble colors (brand purples) ──
 let selectedRegion = null;
 let selectedEl     = null;
  
-function bubbleRadius(count) {
-  if (count >= 15) return 22;
-  if (count >= 8)  return 18;
-  if (count >= 4)  return 15;
-  if (count >= 2)  return 12;
-  return 10;
-}
-function bubbleColor(count) {
-  if (count >= 15) return "#1a4fa0";
-  if (count >= 8)  return "#2563d6";
-  if (count >= 4)  return "#4f8ef7";
-  if (count >= 2)  return "#6ba4f8";
-  return "#93bef9";
+function bubbleRadius(n) { return n>=15?22:n>=8?18:n>=4?15:n>=2?12:10; }
+function bubbleColor(n)  {
+  if (n >= 15) return "#6a28a0";
+  if (n >= 8)  return "#9546CD";
+  if (n >= 4)  return "#B57EDC";
+  if (n >= 2)  return "#c99ae8";
+  return "#ddc4f4";
 }
  
 const tt = document.getElementById('tt');
  
 function buildBubbles() {
   markersG.selectAll('.bubble-g').remove();
- 
   const groups = markersG.selectAll('.bubble-g')
     .data(Object.entries(byRegion).filter(([r]) => regionCoords[r]), d => d[0])
     .enter().append('g')
-    .attr('class', 'bubble-g')
+    .attr('class','bubble-g')
     .attr('data-region', d => d[0]);
  
   groups.append('circle').attr('class','bubble');
   groups.append('text').attr('class','bubble-label');
- 
   refreshBubbles();
  
   groups
@@ -447,18 +517,17 @@ function buildBubbles() {
     .on('mousemove', function(event) {
       const rect = wrap.getBoundingClientRect();
       let x = event.clientX - rect.left + 12;
-      let y = event.clientY - rect.top  - 36;
+      let y = event.clientY - rect.top  - 38;
       if (x + 200 > rect.width) x -= 210;
-      tt.style.left = x + 'px'; tt.style.top = y + 'px';
+      tt.style.left = x+'px'; tt.style.top = y+'px';
     })
     .on('mouseout', () => { tt.style.opacity = '0'; })
     .on('click', function(event, [region, data]) {
       const emps = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
       if (!emps.length) return;
-      if (selectedEl) d3.select(selectedEl).classed('selected', false);
-      d3.select(this).classed('selected', true);
-      selectedEl = this;
-      selectedRegion = region;
+      if (selectedEl) d3.select(selectedEl).classed('selected',false);
+      d3.select(this).classed('selected',true);
+      selectedEl = this; selectedRegion = region;
       renderSidebar(region);
     });
  
@@ -469,24 +538,20 @@ function refreshBubbles() {
   markersG.selectAll('.bubble-g').each(function([region, data]) {
     const emps  = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
     const count = emps.length;
-    const r     = bubbleRadius(count);
-    const sel   = d3.select(this);
-    sel.style('display', count === 0 ? 'none' : '');
-    sel.select('.bubble').attr('r', r).attr('fill', bubbleColor(count));
-    sel.select('.bubble-label').attr('font-size', count >= 10 ? 11 : 12).text(count);
+    d3.select(this).style('display', count===0?'none':'');
+    d3.select(this).select('.bubble').attr('r', bubbleRadius(count)).attr('fill', bubbleColor(count));
+    d3.select(this).select('.bubble-label').attr('font-size', count>=10?11:12).text(count);
   });
 }
  
 function updateMarkerPositions(t) {
   markersG.selectAll('.bubble-g').each(function([region]) {
-    const coords = regionCoords[region];
-    if (!coords) return;
-    const [px, py] = projection(coords);
-    d3.select(this).attr('transform', `translate(${t.applyX(px)},${t.applyY(py)})`);
+    const c = regionCoords[region]; if (!c) return;
+    const [px,py] = projection(c);
+    d3.select(this).attr('transform',`translate(${t.applyX(px)},${t.applyY(py)})`);
   });
 }
  
-// ── Sidebar ──
 function renderSidebar(region) {
   const data = byRegion[region];
   const emps = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
@@ -496,7 +561,7 @@ function renderSidebar(region) {
   const listEl = document.getElementById('sb-list');
   listEl.style.display = 'block';
   const grouped = {};
-  emps.forEach(e => { (grouped[e.dept] = grouped[e.dept] || []).push(e); });
+  emps.forEach(e => { (grouped[e.dept]=grouped[e.dept]||[]).push(e); });
   listEl.innerHTML = Object.entries(grouped)
     .sort(([a],[b]) => a.localeCompare(b))
     .map(([dept, dEmps]) => `
@@ -513,7 +578,7 @@ function renderSidebar(region) {
       </div>`).join('');
 }
  
-setTimeout(() => { document.getElementById('zh').style.opacity = '0'; }, 4000);
+setTimeout(() => { document.getElementById('zh').style.opacity='0'; }, 4000);
 </script>
 </body>
 </html>
