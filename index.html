@@ -229,6 +229,15 @@ const employees = [
   { name:"Laura Montenegro",            region:"California",       country:"United States", dept:"Engineering" },
   { name:"Isabella Miccio",             region:"California",       country:"United States", dept:"G&A" },
   { name:"Tom Bowcut",                  region:"Utah",             country:"United States", dept:"Sales" },
+  { name:"Jaclyn Van",                  region:"Florida",          country:"United States", dept:"Customer Success" },
+  { name:"Marina Addonizio",            region:"Massachusetts",    country:"United States", dept:"Customer Success" },
+  { name:"Shreyas Nair",                region:"New York",         country:"United States", dept:"Engineering" },
+  { name:"Tianyi He",                   region:"Pennsylvania",     country:"United States", dept:"Engineering" },
+  { name:"Zohaib Arshad",               region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
+  { name:"Muhammad Ans",                region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
+  { name:"Muhammad Pen",                region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
+  { name:"Zoheb Nazir",                 region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
+  { name:"Saba Azeem",                  region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
 ];
 
 // ── Region centroids [lng, lat] ──
@@ -242,14 +251,16 @@ const regionCoords = {
   "North Carolina": [-79.02,  35.76], "Georgia":        [-82.90,  32.17],
   "Oregon":         [-120.55, 43.80], "Tennessee":      [-86.58,  35.52],
   "Pennsylvania":   [-77.19,  41.20], "Oklahoma":       [-96.92,  35.54],
+  "Massachusetts":  [-71.53,  42.41],
   "Ontario":          [-85.32, 50.00], "British Columbia": [-124.00, 54.00],
   "Karnataka":      [75.71, 15.32],  "Tamil Nadu":     [78.66, 11.13],
   "Rajasthan":      [74.22, 27.02],  "Maharashtra":    [75.71, 19.75],
   "Madhya Pradesh": [78.66, 22.97],  "Uttarakhand":    [79.02, 30.07],
   "Kerala":         [76.27, 10.85],
+  "Lahore":         [74.36, 31.52],
 };
 
-const highlightCountries = new Set([840, 124, 356]); // US, Canada, India
+const highlightCountries = new Set([840, 124, 356, 586]); // US, Canada, India, Pakistan
 
 // ── Dept colours ──
 const deptColors = {
