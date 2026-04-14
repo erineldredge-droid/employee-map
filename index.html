@@ -1,488 +1,164 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Employee Location Map</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
-  <style>
-    :root {
-      --purple-dark:  #9546CD;
-      --purple-light: #B57EDC;
-      --land:         #f5f0eb;
-      --land-hi:      #ecddf8;
-      --ocean:        #b8d4e8;
-      --border:       #111111;
-      --bg:           #ffffff;
-      --surface:      #ffffff;
-      --text:         #1a1a2e;
-      --muted:        #7a7f9a;
-    }
- 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
- 
-    .wrapper { display: flex; flex-direction: column; height: 100vh; }
- 
-    /* ── Top bar ── */
-    .topbar {
-      background: var(--surface); border-bottom: 1px solid #e4e7f0;
-      padding: 9px 18px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
-    }
-    .topbar h1 { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; }
-    .pills { display: flex; gap: 6px; flex-wrap: wrap; }
-    .pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
-    .pill-a { background: #f3e8fd; color: var(--purple-dark); }
-    .pill-b { background: #f3e8fd; color: var(--purple-dark); }
-    .pill-c { background: #eef1ff; color: #3b5bdb; }
- 
-    /* ── Legend bar ── */
-    .legend-bar {
-      background: var(--surface); border-bottom: 1px solid #e4e7f0;
-      padding: 6px 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex-shrink: 0;
-    }
-    .legend-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
-    .legend-items { display: flex; gap: 12px; flex-wrap: wrap; }
-    .legend-item  { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #444; }
-    .legend-dot   { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .filter-btns  { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
-    .fbtn {
-      font-size: 11px; padding: 3px 9px; border-radius: 20px;
-      border: 1.5px solid #dde0ec; background: #fff; color: #555;
-      cursor: pointer; transition: all 0.13s; white-space: nowrap;
-    }
-    .fbtn:hover  { border-color: var(--purple-dark); color: var(--purple-dark); }
-    .fbtn.active { background: var(--purple-dark); color: #fff; border-color: var(--purple-dark); }
- 
-    /* ── Content ── */
-    .content { display: flex; flex: 1; overflow: hidden; }
- 
-    /* ── Map ── */
-    #map-wrap { flex: 1; position: relative; overflow: hidden; background: var(--ocean); cursor: grab; }
-    #map-wrap:active { cursor: grabbing; }
-    #map-svg { display: block; width: 100%; height: 100%; }
- 
-    /* Land fills — no stroke here, borders drawn separately */
-    .land-base { fill: var(--land); stroke: none; }
-    .land-hi   { fill: var(--land-hi); stroke: none; }
- 
-    /* All borders: thin black */
-    .borders-countries { fill: none; stroke: var(--border); stroke-width: 0.25; stroke-linejoin: round; }
-    .borders-states    { fill: none; stroke: var(--border); stroke-width: 0.18; stroke-linejoin: round; }
-    .borders-provinces { fill: none; stroke: var(--border); stroke-width: 0.18; stroke-linejoin: round; }
- 
-    /* Tooltip */
-    .map-tooltip {
-      position: absolute; background: #1a1a2e; color: #fff;
-      padding: 8px 12px; border-radius: 9px; font-size: 12.5px;
-      pointer-events: none; opacity: 0; transition: opacity 0.12s;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 20; white-space: nowrap;
-    }
-    .map-tooltip .tt-name  { font-weight: 700; margin-bottom: 2px; }
-    .map-tooltip .tt-count { font-size: 11px; color: rgba(255,255,255,0.6); }
- 
-    /* Zoom hint */
-    .zoom-hint {
-      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.9); font-size: 11px;
-      padding: 5px 12px; border-radius: 20px; pointer-events: none; transition: opacity 0.6s;
-    }
- 
-    /* Bubbles */
-    .bubble-g  { cursor: pointer; }
-    .bubble    { stroke: rgba(255,255,255,0.9); stroke-width: 2.5; transition: filter 0.15s; }
-    .bubble-g:hover .bubble  { filter: brightness(1.1) drop-shadow(0 3px 8px rgba(149,70,205,0.4)); }
-    .bubble-g.selected .bubble { stroke: #fff; stroke-width: 3; filter: drop-shadow(0 0 0 3px var(--purple-dark)); }
-    .bubble-label { fill: #fff; text-anchor: middle; dominant-baseline: central; font-weight: 700; pointer-events: none; font-family: inherit; }
- 
-    /* Sidebar */
-    .sidebar { width: 272px; flex-shrink: 0; background: #fff; border-left: 1px solid #e4e7f0; display: flex; flex-direction: column; overflow: hidden; }
-    .sb-head { padding: 14px 16px 10px; border-bottom: 1px solid #f0f2f8; flex-shrink: 0; }
-    .sb-head h2 { font-size: 14px; font-weight: 700; }
-    .sb-head .sb-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .sb-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #c0c4d6; font-size: 13px; padding: 20px; text-align: center; line-height: 1.6; gap: 10px; }
-    .sb-empty .icon { font-size: 30px; }
-    .sb-list { flex: 1; overflow-y: auto; padding: 10px; display: none; }
-    .sb-list::-webkit-scrollbar { width: 3px; }
-    .sb-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
-    .dept-grp { margin-bottom: 12px; }
-    .dept-grp-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 0 4px 5px; border-bottom: 1px solid #f0f2f8; margin-bottom: 5px; }
-    .emp-card { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px; margin-bottom: 4px; background: #f7f8fc; transition: background 0.1s; }
-    .emp-card:hover { background: #eef0f8; }
-    .emp-av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
-    .emp-name { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
-    .emp-dept { font-size: 11px; color: var(--muted); margin-top: 1px; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Team Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f9f9f8; }
+  #topbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fff; border-bottom: 1px solid #e8e8e5; flex-wrap: wrap; }
+  #badge { background: #e6f1fb; color: #185fa5; border-radius: 6px; padding: 3px 10px; font-size: 12px; font-weight: 500; }
+  #status { font-size: 13px; color: #888; }
+  #map { width: 100%; height: calc(100vh - 90px); }
+  #legend { display: flex; gap: 12px; flex-wrap: wrap; padding: 8px 14px; background: #fff; border-top: 1px solid #e8e8e5; }
+  .li { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #555; }
+  .ld { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .leaflet-popup-content strong { font-size: 13px; }
+  .leaflet-popup-content span { font-size: 12px; color: #666; display: block; margin-top: 2px; }
+</style>
 </head>
 <body>
-<div class="wrapper">
- 
-  <div class="topbar">
-    <h1>🗺️ Team Locations</h1>
-    <div class="pills">
-      <span class="pill pill-a" id="p-total">— employees</span>
-      <span class="pill pill-b" id="p-us">— US</span>
-      <span class="pill pill-c" id="p-intl">— International</span>
-    </div>
-  </div>
- 
-  <div class="legend-bar">
-    <span class="legend-label">Dept</span>
-    <div class="legend-items" id="leg"></div>
-    <div class="filter-btns" id="fbtns"></div>
-  </div>
- 
-  <div class="content">
-    <div id="map-wrap">
-      <div class="map-tooltip" id="tt"></div>
-      <div class="zoom-hint" id="zh">Scroll to zoom · Drag to pan</div>
-    </div>
-    <div class="sidebar">
-      <div class="sb-head">
-        <h2 id="sb-title">Select a Region</h2>
-        <div class="sb-sub" id="sb-sub"></div>
-      </div>
-      <div class="sb-empty" id="sb-empty">
-        <span class="icon">🌍</span>
-        Click a circle on the map to see team members
-      </div>
-      <div class="sb-list" id="sb-list"></div>
-    </div>
-  </div>
-</div>
- 
+
+<!-- ============================================================
+     STEP 1: Replace the value below with your Apps Script URL
+     ============================================================ -->
 <script>
-// ── Employee data ──
-const employees = [
-  { name:"Amanda Kahlow",               region:"California",       country:"United States", dept:"G&A" },
-  { name:"Andrew Torres",               region:"Nevada",           country:"United States", dept:"Engineering" },
-  { name:"Peter Shum",                  region:"Virginia",         country:"United States", dept:"Professional Services" },
-  { name:"Sandi Hackler",               region:"Florida",          country:"United States", dept:"G&A" },
-  { name:"Alexandre Quin",              region:"Idaho",            country:"United States", dept:"Engineering" },
-  { name:"Lauren Winn",                 region:"California",       country:"United States", dept:"Sales" },
-  { name:"Navneet Agarwal",             region:"Karnataka",        country:"India",         dept:"Engineering" },
-  { name:"Asim Iqbal",                  region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Brian Leveque",               region:"Virginia",         country:"United States", dept:"Professional Services" },
-  { name:"Lynette Pretorius",           region:"Ontario",          country:"Canada",        dept:"G&A" },
-  { name:"Jos Kuttan",                  region:"British Columbia", country:"Canada",        dept:"Engineering" },
-  { name:"Jibin Scaria",                region:"Ontario",          country:"Canada",        dept:"Engineering" },
-  { name:"Kirk Nankivell",              region:"Nevada",           country:"United States", dept:"Product Management" },
-  { name:"Katie Nocerino",              region:"California",       country:"United States", dept:"Sales" },
-  { name:"Marty Meyer",                 region:"Florida",          country:"United States", dept:"G&A" },
-  { name:"Laura Fountain",              region:"Illinois",         country:"United States", dept:"Customer Success" },
-  { name:"Parthasarathy Jeyaram",       region:"Tamil Nadu",       country:"India",         dept:"Engineering" },
-  { name:"Ashoka Finley",               region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Siddhant Ujjain",             region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Katie Murphy",                region:"New York",         country:"United States", dept:"Customer Success" },
-  { name:"Mohan Singh",                 region:"Rajasthan",        country:"India",         dept:"Engineering" },
-  { name:"Shivani Bajaj",               region:"New York",         country:"United States", dept:"Customer Success" },
-  { name:"Sara Sahlezghi",              region:"Washington",       country:"United States", dept:"Customer Success" },
-  { name:"Sonaksh Saraswat",            region:"Karnataka",        country:"India",         dept:"Engineering" },
-  { name:"Michael Bissani",             region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Erica Ferraro",               region:"California",       country:"United States", dept:"Customer Success" },
-  { name:"Chase Masciorini",            region:"California",       country:"United States", dept:"Sales" },
-  { name:"Kari Donovan",                region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Devon Guinn",                 region:"New York",         country:"United States", dept:"Engineering" },
-  { name:"Martin Mallery",              region:"Florida",          country:"United States", dept:"Engineering" },
-  { name:"Matt Kern",                   region:"Connecticut",      country:"United States", dept:"Engineering" },
-  { name:"Sabina Mamedova",             region:"New York",         country:"United States", dept:"Product Management" },
-  { name:"Stacy Falkman",               region:"New York",         country:"United States", dept:"Customer Success" },
-  { name:"Priyam Shah",                 region:"Texas",            country:"United States", dept:"Product Management" },
-  { name:"Sachin Bhat",                 region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Raina Raina",                 region:"Minnesota",        country:"United States", dept:"Engineering" },
-  { name:"Kevin Amipara",               region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Anamay Saxena",               region:"Rajasthan",        country:"India",         dept:"Engineering" },
-  { name:"Teja Dronadula",              region:"Karnataka",        country:"India",         dept:"Engineering" },
-  { name:"Sanket Singhal",              region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Bridget Shea",                region:"New York",         country:"United States", dept:"Customer Success" },
-  { name:"Tanmay Chaudhari",            region:"Maharashtra",      country:"India",         dept:"Engineering" },
-  { name:"Ajay Deshmukh",               region:"Madhya Pradesh",   country:"India",         dept:"Engineering" },
-  { name:"Erin Eldredge",               region:"Oklahoma",         country:"United States", dept:"G&A" },
-  { name:"Devon McDermott",             region:"California",       country:"United States", dept:"Sales" },
-  { name:"Liz Madsen",                  region:"Pennsylvania",     country:"United States", dept:"Sales" },
-  { name:"Tom Alaimo",                  region:"Illinois",         country:"United States", dept:"Sales" },
-  { name:"Joi Heyward",                 region:"New York",         country:"United States", dept:"G&A" },
-  { name:"Samarth K",                   region:"Karnataka",        country:"India",         dept:"Engineering" },
-  { name:"Sudeep Patil",                region:"Maharashtra",      country:"India",         dept:"Engineering" },
-  { name:"Vishal Sharma",               region:"Uttarakhand",      country:"India",         dept:"Engineering" },
-  { name:"Ken Edwards",                 region:"Ontario",          country:"Canada",        dept:"Sales" },
-  { name:"Derick Choi",                 region:"California",       country:"United States", dept:"G&A" },
-  { name:"Jonathan or Coach Kvarfordt", region:"Utah",             country:"United States", dept:"Marketing" },
-  { name:"Giana Petrichella",           region:"Utah",             country:"United States", dept:"Marketing" },
-  { name:"Russell Logan",               region:"Nevada",           country:"United States", dept:"Customer Success" },
-  { name:"William Buecksler",           region:"North Carolina",   country:"United States", dept:"Sales" },
-  { name:"Neelesh Lohani",              region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Monica Cottrell",             region:"Georgia",          country:"United States", dept:"Sales" },
-  { name:"Amanda Purcell",              region:"Oregon",           country:"United States", dept:"Sales" },
-  { name:"Priyank Chhipa",              region:"Karnataka",        country:"India",         dept:"Engineering" },
-  { name:"Ginger Shaker",               region:"Tennessee",        country:"United States", dept:"Engineering" },
-  { name:"Sourish Gupta",               region:"Maharashtra",      country:"India",         dept:"Engineering" },
-  { name:"Josh Carter",                 region:"Virginia",         country:"United States", dept:"Sales" },
-  { name:"Elah Horwitz",                region:"New York",         country:"United States", dept:"Customer Success" },
-  { name:"Izzy Hong",                   region:"New York",         country:"United States", dept:"Customer Success" },
-  { name:"Claire McDonnell",            region:"New York",         country:"United States", dept:"Customer Success" },
-  { name:"Dilip Prasad",                region:"Kerala",           country:"India",         dept:"Engineering" },
-  { name:"Shreyas Ramanujam",           region:"Georgia",          country:"United States", dept:"Engineering" },
-  { name:"Miguel Ledesma",              region:"Texas",            country:"United States", dept:"Professional Services" },
-  { name:"Laura Montenegro",            region:"California",       country:"United States", dept:"Engineering" },
-  { name:"Isabella Miccio",             region:"California",       country:"United States", dept:"G&A" },
-  { name:"Tom Bowcut",                  region:"Utah",             country:"United States", dept:"Sales" },
-];
- 
-// ── Region centroids [lng, lat] ──
-const regionCoords = {
-  "California":     [-119.42, 36.78], "Nevada":         [-116.42, 38.80],
-  "Virginia":       [-78.66,  37.43], "Florida":        [-81.52,  27.99],
-  "Idaho":          [-114.74, 44.07], "Illinois":       [-89.40,  40.63],
-  "New York":       [-75.50,  43.00], "Washington":     [-121.49, 47.40],
-  "Connecticut":    [-73.09,  41.60], "Texas":          [-99.90,  31.97],
-  "Minnesota":      [-94.69,  46.73], "Utah":           [-111.09, 39.32],
-  "North Carolina": [-79.02,  35.76], "Georgia":        [-82.90,  32.17],
-  "Oregon":         [-120.55, 43.80], "Tennessee":      [-86.58,  35.52],
-  "Pennsylvania":   [-77.19,  41.20], "Oklahoma":       [-96.92,  35.54],
-  "Ontario":          [-85.32, 50.00], "British Columbia": [-124.00, 54.00],
-  "Karnataka":      [75.71, 15.32],  "Tamil Nadu":     [78.66, 11.13],
-  "Rajasthan":      [74.22, 27.02],  "Maharashtra":    [75.71, 19.75],
-  "Madhya Pradesh": [78.66, 22.97],  "Uttarakhand":    [79.02, 30.07],
-  "Kerala":         [76.27, 10.85],
+  const SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
+</script>
+<!-- ============================================================ -->
+
+<div id="topbar">
+  <span id="badge">Loading…</span>
+  <span id="status">Fetching team data…</span>
+</div>
+<div id="map"></div>
+<div id="legend"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const DEPT_COLORS = {
+  Engineering: '#378ADD', Marketing: '#1D9E75', Sales: '#D85A30',
+  Design: '#7F77DD', HR: '#D4537E', Finance: '#BA7517',
+  Operations: '#639922', Legal: '#888780', Product: '#E24B4A',
+  Other: '#5DCAA5'
 };
- 
-const highlightCountries = new Set([840, 124, 356]); // US, Canada, India
- 
-// ── Dept colours ──
-const deptColors = {
-  "Engineering":          "#4f8ef7",
-  "Sales":                "#f7794f",
-  "Customer Success":     "#3ec98e",
-  "G&A":                  "#c97af4",
-  "Product Management":   "#e6b32a",
-  "Professional Services":"#22c4e8",
-  "Marketing":            "#f74f8e",
-};
-const getDeptColor = d => deptColors[d] || "#aaa";
-const getInitials  = n => n.split(' ').slice(0,2).map(c=>c[0]).join('').toUpperCase();
- 
-// ── Group by region ──
-const byRegion = {};
-employees.forEach(e => {
-  if (!byRegion[e.region]) byRegion[e.region] = { country: e.country, employees: [] };
-  byRegion[e.region].employees.push(e);
-});
- 
-const usCount   = employees.filter(e => e.country === "United States").length;
-const intlCount = employees.length - usCount;
-document.getElementById('p-total').textContent = `${employees.length} employees`;
-document.getElementById('p-us').textContent    = `${usCount} US`;
-document.getElementById('p-intl').textContent  = `${intlCount} International`;
- 
-// ── Legend ──
-const legEl = document.getElementById('leg');
-Object.entries(deptColors).forEach(([dept, color]) => {
-  legEl.insertAdjacentHTML('beforeend',
-    `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div><span>${dept}</span></div>`);
-});
- 
-// ── Dept filter ──
-let activeFilter = null;
-const fbEl = document.getElementById('fbtns');
-[{label:'All',value:null},...Object.keys(deptColors).sort().map(d=>({label:d,value:d}))].forEach(({label,value})=>{
-  const btn = document.createElement('button');
-  btn.className = 'fbtn'+(value===null?' active':'');
-  btn.textContent = label;
-  btn.onclick = () => {
-    activeFilter = value;
-    document.querySelectorAll('.fbtn').forEach(b=>b.classList.toggle('active',b.textContent===label));
-    refreshBubbles();
-    if (selectedRegion) renderSidebar(selectedRegion);
-  };
-  fbEl.appendChild(btn);
-});
- 
-// ── Map setup ──
-const wrap = document.getElementById('map-wrap');
-const W = wrap.clientWidth  || 900;
-const H = wrap.clientHeight || 500;
- 
-const svg = d3.select('#map-wrap').append('svg')
-  .attr('id','map-svg').attr('width',W).attr('height',H);
- 
-svg.append('defs').append('clipPath').attr('id','map-clip')
-  .append('rect').attr('width',W).attr('height',H);
- 
-// ── Mercator projection — flat, straight-on world map ──
-const projection = d3.geoMercator()
-  .scale(W / (2 * Math.PI) * 0.95)
-  .translate([W / 2, H / 2 + H * 0.08]);
- 
-const pathGen = d3.geoPath().projection(projection);
- 
-const mapG     = svg.append('g').attr('clip-path','url(#map-clip)');
-const markersG = svg.append('g').attr('id','markers');
- 
-// ── Zoom ──
-const zoom = d3.zoom()
-  .scaleExtent([0.8, 16])
-  .on('zoom', event => {
-    const t = event.transform;
-    mapG.attr('transform', t);
-    updateMarkerPositions(t);
-    document.getElementById('zh').style.opacity = '0';
-  });
-svg.call(zoom);
- 
-// ── Helper: extract mesh from any topojson ──
-function getTopoMesh(data, innerOnly) {
-  if (!data) return null;
-  const key = Object.keys(data.objects)[0];
-  return innerOnly
-    ? topojson.mesh(data, data.objects[key], (a,b) => a !== b)
-    : topojson.mesh(data, data.objects[key]);
+const usedColors = {};
+const extraColors = ['#378ADD','#1D9E75','#D85A30','#7F77DD','#D4537E','#BA7517','#639922','#888780','#E24B4A','#5DCAA5'];
+let colorIdx = 0;
+
+function deptColor(d) {
+  if (DEPT_COLORS[d]) return DEPT_COLORS[d];
+  if (!usedColors[d]) usedColors[d] = extraColors[colorIdx++ % extraColors.length];
+  return usedColors[d];
 }
- 
-// ── Load all map layers ──
-Promise.all([
-  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'),
-  d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'),
-  d3.json('https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.0.0/countries/in/in-all.topo.json').catch(()=>null),
-  d3.json('https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.0.0/countries/ca/ca-all.topo.json').catch(()=>null),
-]).then(([world, us, india, canada]) => {
- 
-  // 1. Country fills (no stroke — borders drawn separately)
-  const countries = topojson.feature(world, world.objects.countries);
-  mapG.append('g')
-    .selectAll('path')
-    .data(countries.features)
-    .enter().append('path')
-    .attr('class', d => highlightCountries.has(+d.id) ? 'land-hi' : 'land-base')
-    .attr('d', pathGen);
- 
-  // 2. Country borders — all countries, thin black
-  mapG.append('path')
-    .datum(topojson.mesh(world, world.objects.countries, (a,b) => a !== b))
-    .attr('class','borders-countries')
-    .attr('d', pathGen);
- 
-  // 3. US state borders — draw each state individually so no edge is missing
-  const stateFeatures = topojson.feature(us, us.objects.states);
-  mapG.append('g')
-    .selectAll('path')
-    .data(stateFeatures.features)
-    .enter().append('path')
-    .attr('class','borders-states')
-    .attr('d', pathGen);
- 
-  // 4. India province borders
-  if (india) {
-    try {
-      mapG.append('path').datum(getTopoMesh(india, true))
-        .attr('class','borders-provinces').attr('d', pathGen);
-    } catch(e) {}
-  }
- 
-  // 5. Canada province borders
-  if (canada) {
-    try {
-      mapG.append('path').datum(getTopoMesh(canada, true))
-        .attr('class','borders-provinces').attr('d', pathGen);
-    } catch(e) {}
-  }
- 
-  buildBubbles();
-}).catch(() => buildBubbles());
- 
-// ── Bubbles ──
-let selectedRegion = null;
-let selectedEl     = null;
- 
-function bubbleRadius(n) { return n>=15?22:n>=8?18:n>=4?15:n>=2?12:10; }
-function bubbleColor(n)  {
-  if (n>=15) return "#6a28a0";
-  if (n>=8)  return "#9546CD";
-  if (n>=4)  return "#B57EDC";
-  if (n>=2)  return "#c99ae8";
-  return "#ddc4f4";
-}
- 
-const tt = document.getElementById('tt');
- 
-function buildBubbles() {
-  markersG.selectAll('.bubble-g').remove();
-  const groups = markersG.selectAll('.bubble-g')
-    .data(Object.entries(byRegion).filter(([r])=>regionCoords[r]), d=>d[0])
-    .enter().append('g').attr('class','bubble-g');
- 
-  groups.append('circle').attr('class','bubble');
-  groups.append('text').attr('class','bubble-label');
-  refreshBubbles();
- 
-  groups
-    .on('mouseover', function(event,[region,data]) {
-      const emps = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
-      if (!emps.length) return;
-      tt.innerHTML = `<div class="tt-name">${region}</div><div class="tt-count">${emps.length} employee${emps.length>1?'s':''} · ${data.country}</div>`;
-      tt.style.opacity = '1';
-    })
-    .on('mousemove', function(event) {
-      const r = wrap.getBoundingClientRect();
-      let x = event.clientX-r.left+12, y = event.clientY-r.top-38;
-      if (x+200>r.width) x-=210;
-      tt.style.left=x+'px'; tt.style.top=y+'px';
-    })
-    .on('mouseout', ()=>{ tt.style.opacity='0'; })
-    .on('click', function(event,[region,data]) {
-      const emps = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
-      if (!emps.length) return;
-      if (selectedEl) d3.select(selectedEl).classed('selected',false);
-      d3.select(this).classed('selected',true);
-      selectedEl=this; selectedRegion=region;
-      renderSidebar(region);
+
+const map = L.map('map').setView([25, 10], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+  maxZoom: 18
+}).addTo(map);
+
+const geoCache = {};
+async function geocode(state, country) {
+  const key = [state, country].filter(Boolean).join('|');
+  if (geoCache[key]) return geoCache[key];
+  const q = [state, country].filter(Boolean).join(', ');
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+      headers: { 'Accept-Language': 'en' }
     });
- 
-  updateMarkerPositions(d3.zoomTransform(svg.node()));
+    const d = await r.json();
+    if (d[0]) { geoCache[key] = { lat: +d[0].lat, lng: +d[0].lon }; return geoCache[key]; }
+  } catch(e) {}
+  return null;
 }
- 
-function refreshBubbles() {
-  markersG.selectAll('.bubble-g').each(function([region,data]) {
-    const emps  = activeFilter ? data.employees.filter(e=>e.dept===activeFilter) : data.employees;
-    const count = emps.length;
-    d3.select(this).style('display', count===0?'none':'');
-    d3.select(this).select('.bubble').attr('r',bubbleRadius(count)).attr('fill',bubbleColor(count));
-    d3.select(this).select('.bubble-label').attr('font-size',count>=10?11:12).text(count);
+
+function jitter(coord, i, n) {
+  if (n <= 1) return coord;
+  const r = 0.05 + 0.025 * Math.floor(i / 8);
+  return coord + r * Math.cos(2 * Math.PI * i / n);
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setBadge(n) { document.getElementById('badge').textContent = n + ' people'; }
+
+async function renderPeople(data) {
+  const people = data.map(r => ({
+    name: r['Employee Name'] || '',
+    state: r['State'] || '',
+    country: r['Country'] || '',
+    dept: r['Department'] || 'Other'
+  })).filter(p => p.name && p.country);
+
+  setBadge(people.length);
+  setStatus('Geocoding locations…');
+
+  const groups = {};
+  people.forEach(p => {
+    const k = [p.state, p.country].join('|');
+    if (!groups[k]) groups[k] = [];
+    groups[k].push(p);
   });
+
+  let done = 0, total = Object.keys(groups).length;
+  for (const [k, grp] of Object.entries(groups)) {
+    const geo = await geocode(grp[0].state, grp[0].country);
+    if (geo) {
+      grp.forEach((p, i) => {
+        const lat = jitter(geo.lat, i, grp.length);
+        const lng = jitter(geo.lng, i, grp.length);
+        const c = deptColor(p.dept);
+        const initials = p.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:30px;height:30px;border-radius:50%;background:${c};border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;box-shadow:0 1px 5px rgba(0,0,0,0.25);cursor:pointer">${initials}</div>`,
+          iconSize: [30, 30], iconAnchor: [15, 15]
+        });
+        const m = L.marker([lat, lng], { icon }).addTo(map);
+        const loc = [p.state, p.country].filter(Boolean).join(', ');
+        m.bindPopup(`<strong>${p.name}</strong><span>${p.dept}</span><span>${loc}</span>`);
+      });
+    }
+    done++;
+    setStatus(`Geocoding… ${done}/${total} locations`);
+    await new Promise(r => setTimeout(r, 110));
+  }
+
+  setStatus('Zoom in to spread clustered pins · Click any pin for details');
+  renderLegend(people);
 }
- 
-function updateMarkerPositions(t) {
-  markersG.selectAll('.bubble-g').each(function([region]) {
-    const c=regionCoords[region]; if (!c) return;
-    const [px,py]=projection(c);
-    d3.select(this).attr('transform',`translate(${t.applyX(px)},${t.applyY(py)})`);
-  });
+
+function renderLegend(people) {
+  const depts = [...new Set(people.map(p => p.dept))].sort();
+  document.getElementById('legend').innerHTML = depts.map(d =>
+    `<div class="li"><span class="ld" style="background:${deptColor(d)}"></span>${d}</div>`
+  ).join('');
 }
- 
-function renderSidebar(region) {
-  const data=byRegion[region];
-  const emps=activeFilter?data.employees.filter(e=>e.dept===activeFilter):data.employees;
-  document.getElementById('sb-title').textContent=region;
-  document.getElementById('sb-sub').textContent=`${data.country} · ${emps.length} employee${emps.length!==1?'s':''}`;
-  document.getElementById('sb-empty').style.display='none';
-  const listEl=document.getElementById('sb-list');
-  listEl.style.display='block';
-  const grouped={};
-  emps.forEach(e=>{(grouped[e.dept]=grouped[e.dept]||[]).push(e);});
-  listEl.innerHTML=Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([dept,dEmps])=>`
-    <div class="dept-grp">
-      <div class="dept-grp-label" style="color:${getDeptColor(dept)}">${dept}</div>
-      ${dEmps.sort((a,b)=>a.name.localeCompare(b.name)).map(e=>`
-        <div class="emp-card">
-          <div class="emp-av" style="background:${getDeptColor(e.dept)}">${getInitials(e.name)}</div>
-          <div><div class="emp-name">${e.name}</div><div class="emp-dept">${e.dept}</div></div>
-        </div>`).join('')}
-    </div>`).join('');
+
+async function init() {
+  if (!SCRIPT_URL || SCRIPT_URL === "PASTE_YOUR_APPS_SCRIPT_URL_HERE") {
+    setStatus('⚠️ Open this file and replace SCRIPT_URL with your Apps Script Web App URL.');
+    document.getElementById('badge').textContent = 'Not connected';
+    return;
+  }
+  try {
+    setStatus('Fetching team data…');
+    const res = await fetch(SCRIPT_URL);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      setStatus('No data found. Check your Apps Script and sheet headers.');
+      return;
+    }
+    renderPeople(data);
+  } catch(e) {
+    setStatus('Error loading data: ' + e.message + '. Make sure Apps Script is deployed with access: Anyone.');
+  }
 }
- 
-setTimeout(()=>{ document.getElementById('zh').style.opacity='0'; }, 4000);
+
+init();
 </script>
 </body>
 </html>
