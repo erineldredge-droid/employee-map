@@ -171,9 +171,7 @@ const employees = [
   { name:"Kirk Nankivell",              region:"Nevada",           country:"United States", dept:"Product Management" },
   { name:"Katie Nocerino",              region:"California",       country:"United States", dept:"Sales" },
   { name:"Marty Meyer",                 region:"Florida",          country:"United States", dept:"G&A" },
-  { name:"Laura Fountain",              region:"Illinois",         country:"United States", dept:"Customer Success" },
   { name:"Parthasarathy Jeyaram",       region:"Tamil Nadu",       country:"India",         dept:"Engineering" },
-  { name:"Ashoka Finley",               region:"California",       country:"United States", dept:"Engineering" },
   { name:"Siddhant Ujjain",             region:"California",       country:"United States", dept:"Engineering" },
   { name:"Katie Murphy",                region:"New York",         country:"United States", dept:"Customer Success" },
   { name:"Mohan Singh",                 region:"Rajasthan",        country:"India",         dept:"Engineering" },
@@ -232,12 +230,16 @@ const employees = [
   { name:"Jaclyn Van",                  region:"Florida",          country:"United States", dept:"Customer Success" },
   { name:"Marina Addonizio",            region:"Massachusetts",    country:"United States", dept:"Customer Success" },
   { name:"Shreyas Nair",                region:"New York",         country:"United States", dept:"Engineering" },
-  { name:"Tianyi He",                   region:"Pennsylvania",     country:"United States", dept:"Engineering" },
   { name:"Zohaib Arshad",               region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
   { name:"Muhammad Ans",                region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
   { name:"Muhammad Pen",                region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
   { name:"Zoheb Nazir",                 region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
   { name:"Saba Azeem",                  region:"Lahore",           country:"Pakistan",      dept:"Engineering" },
+  { name:"Johan Ramirez",               region:"Bogotá",           country:"Colombia",      dept:"Marketing" },
+  { name:"Magalí García Nieto",         region:"Mendoza",          country:"Argentina",     dept:"Marketing" },
+  { name:"Rayssa Oliveira",             region:"Paraíba",          country:"Brazil",        dept:"Marketing" },
+  { name:"Catalina Capisano",           region:"Santa Fe",         country:"Argentina",     dept:"Marketing" },
+  { name:"Julieta Gho",                 region:"Santa Fe",         country:"Argentina",     dept:"Marketing" },
 ];
 
 // ── Region centroids [lng, lat] ──
@@ -258,9 +260,13 @@ const regionCoords = {
   "Madhya Pradesh": [78.66, 22.97],  "Uttarakhand":    [79.02, 30.07],
   "Kerala":         [76.27, 10.85],
   "Lahore":         [74.36, 31.52],
+  "Bogotá":         [-74.07, 4.71],
+  "Mendoza":        [-68.83, -32.89],
+  "Paraíba":        [-36.78, -7.12],
+  "Santa Fe":       [-60.70, -31.63],
 };
 
-const highlightCountries = new Set([840, 124, 356, 586]); // US, Canada, India, Pakistan
+const highlightCountries = new Set([840, 124, 356, 586, 170, 32, 76]); // US, Canada, India, Pakistan, Colombia, Argentina, Brazil
 
 // ── Dept colours ──
 const deptColors = {
